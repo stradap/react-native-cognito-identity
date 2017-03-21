@@ -40,27 +40,24 @@ RCT_EXPORT_METHOD(signUp:(NSString *)email
 
     // get user pool as defined in initWithOptions:
     AWSCognitoIdentityUserPool *userPool = [AWSCognitoIdentityUserPool CognitoIdentityUserPoolForKey:@"UserPool"];
-    
+
     // Now signup:
     AWSCognitoIdentityUserAttributeType * emailAttribute = [AWSCognitoIdentityUserAttributeType new];
     emailAttribute.name = @"email";
     emailAttribute.value = email;
-    
+
     //start a separate thread for this to avoid blocking the component queue, since
     //it will have to comunicate with the javascript in the mean time while trying to signup
     NSString* queueName = [NSString stringWithFormat:@"%@.signUpQueue",
                            [NSString stringWithUTF8String:dispatch_queue_get_label(self.methodQueue)]
                            ];
     dispatch_queue_t concurrentQueue = dispatch_queue_create([queueName UTF8String], DISPATCH_QUEUE_CONCURRENT);
-    
+
     dispatch_async(concurrentQueue, ^{
-        
+
         [[userPool signUp:email password:password userAttributes:@[emailAttribute] validationData:nil]
          continueWithBlock:^id _Nullable(AWSTask<AWSCognitoIdentityUserPoolSignUpResponse *> * _Nonnull task) {
-             
-             if (task.exception){
-                 reject([NSString stringWithFormat:@"Exception "],task.exception.reason, [[NSError alloc] init]);
-             }
+
              if (task.error) {
                  reject([NSString stringWithFormat:@"%ld",task.error.code],task.error.description,task.error);
              }
@@ -70,7 +67,7 @@ RCT_EXPORT_METHOD(signUp:(NSString *)email
              }
              return nil;
          }];
-        
+
     });
 }
 
@@ -81,18 +78,13 @@ RCT_EXPORT_METHOD(confirmSignUp:(NSString *)newEmail confirmationCode:(NSString 
                            [NSString stringWithUTF8String:dispatch_queue_get_label(self.methodQueue)]
                            ];
     dispatch_queue_t concurrentQueue = dispatch_queue_create([queueName UTF8String], DISPATCH_QUEUE_CONCURRENT);
-    
+
     dispatch_async(concurrentQueue, ^{
-        
+
         AWSCognitoIdentityUserPool *userPool = [AWSCognitoIdentityUserPool CognitoIdentityUserPoolForKey:@"UserPool"];
         AWSCognitoIdentityUser *user = [userPool getUser:newEmail];
-        
+
         [[user confirmSignUp:confirmationCode] continueWithBlock:^id _Nullable(AWSTask<AWSCognitoIdentityUserConfirmSignUpResponse *> * _Nonnull task) {
-            if (task.exception){
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    @throw [NSException exceptionWithName:task.exception.name reason:task.exception.reason userInfo:task.exception.userInfo];
-                });
-            }
             if (task.error) {
                 reject([NSString stringWithFormat:@"%ld",task.error.code],task.error.description,task.error);
             }
@@ -100,38 +92,33 @@ RCT_EXPORT_METHOD(confirmSignUp:(NSString *)newEmail confirmationCode:(NSString 
                 resolve(newEmail);
             }
             return nil;
-            
+
         }];
     });
 }
 
 RCT_EXPORT_METHOD(getSession:(NSString *)newEmail password:(NSString *)newPassword resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject){
-    
+
     //start a separate thread for this to avoid blocking the component queue, since
     //it will have to comunicate with the javascript in the mean time while trying to get the list of logins
     NSString* queueName = [NSString stringWithFormat:@"%@.getSessionQueue",
                            [NSString stringWithUTF8String:dispatch_queue_get_label(self.methodQueue)]
                            ];
     dispatch_queue_t concurrentQueue = dispatch_queue_create([queueName UTF8String], DISPATCH_QUEUE_CONCURRENT);
-    
+
     dispatch_async(concurrentQueue, ^{
-        
+
         AWSCognitoIdentityUserPool *userPool = [AWSCognitoIdentityUserPool CognitoIdentityUserPoolForKey:@"UserPool"];
         AWSCognitoIdentityUser *user = [userPool getUser:newEmail];
-        
+
         [[user getSession:newEmail password:newPassword validationData:nil] continueWithBlock:^id _Nullable(AWSTask<AWSCognitoIdentityProviderRespondToAuthChallengeResponse *> * _Nonnull task) {
-            if (task.exception){
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    @throw [NSException exceptionWithName:task.exception.name reason:task.exception.reason userInfo:task.exception.userInfo];
-                });
-            }
             if (task.error) {
                 reject([NSString stringWithFormat:@"%ld",task.error.code],task.error.description,task.error);
             }
             else {
                 AWSCognitoIdentityUserSession *session = (AWSCognitoIdentityUserSession *)task.result;
                 NSString* dateAsISO8601String = [[self dateFormatterISO8601] stringFromDate:session.expirationTime];
-                
+
                 NSDictionary *dict = @{
                                        @"idToken":session.idToken.tokenString,
                                        @"accessToken":session.accessToken.tokenString,
@@ -141,7 +128,7 @@ RCT_EXPORT_METHOD(getSession:(NSString *)newEmail password:(NSString *)newPasswo
             }
             return nil;
         }];
-        
+
     });
 }
 
@@ -150,18 +137,13 @@ RCT_EXPORT_METHOD(forgotPassword:(NSString *)newEmail resolver:(RCTPromiseResolv
                            [NSString stringWithUTF8String:dispatch_queue_get_label(self.methodQueue)]
                            ];
     dispatch_queue_t concurrentQueue = dispatch_queue_create([queueName UTF8String], DISPATCH_QUEUE_CONCURRENT);
-    
+
     dispatch_async(concurrentQueue, ^{
-        
+
         AWSCognitoIdentityUserPool *userPool = [AWSCognitoIdentityUserPool CognitoIdentityUserPoolForKey:@"UserPool"];
         AWSCognitoIdentityUser *user = [userPool getUser:newEmail];
-        
+
         [[user forgotPassword] continueWithBlock:^id _Nullable(AWSTask<AWSCognitoIdentityUserForgotPasswordResponse *> * _Nonnull task) {
-            if (task.exception){
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    @throw [NSException exceptionWithName:task.exception.name reason:task.exception.reason userInfo:task.exception.userInfo];
-                });
-            }
             if (task.error) {
                 reject([NSString stringWithFormat:@"%ld",task.error.code],task.error.description,task.error);
             }
@@ -170,7 +152,7 @@ RCT_EXPORT_METHOD(forgotPassword:(NSString *)newEmail resolver:(RCTPromiseResolv
                 resolve(newEmail);
             }
             return nil;
-            
+
         }];
     });
 }
@@ -182,18 +164,13 @@ RCT_EXPORT_METHOD(confirmForgotPassword:(NSString *)newEmail password:(NSString 
                            [NSString stringWithUTF8String:dispatch_queue_get_label(self.methodQueue)]
                            ];
     dispatch_queue_t concurrentQueue = dispatch_queue_create([queueName UTF8String], DISPATCH_QUEUE_CONCURRENT);
-    
+
     dispatch_async(concurrentQueue, ^{
-        
+
         AWSCognitoIdentityUserPool *userPool = [AWSCognitoIdentityUserPool CognitoIdentityUserPoolForKey:@"UserPool"];
         AWSCognitoIdentityUser *user = [userPool getUser:newEmail];
-        
+
         [[user confirmForgotPassword:confirmationCode password:newPassword] continueWithBlock:^id _Nullable(AWSTask<AWSCognitoIdentityUserConfirmForgotPasswordResponse *> * _Nonnull task) {
-            if (task.exception){
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    @throw [NSException exceptionWithName:task.exception.name reason:task.exception.reason userInfo:task.exception.userInfo];
-                });
-            }
             if (task.error) {
                 reject([NSString stringWithFormat:@"%ld",task.error.code],task.error.description,task.error);
             }
@@ -201,7 +178,7 @@ RCT_EXPORT_METHOD(confirmForgotPassword:(NSString *)newEmail password:(NSString 
                 resolve(newEmail);
             }
             return nil;
-            
+
         }];
     });
 }
@@ -231,4 +208,3 @@ RCT_EXPORT_METHOD(initWithOptions:(NSString *)region
 
 
 @end
-  
